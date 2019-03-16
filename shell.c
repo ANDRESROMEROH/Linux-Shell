@@ -48,7 +48,7 @@ char** parseCommand(char* command){
     return parsedCommand;
 }
 
-int executeCommand(char** parsedCommand, char backgroundProcessIndicator){
+int executeCommand(char** parsedCommand){
     pid_t pid;
     pid = fork();
 
@@ -59,12 +59,18 @@ int executeCommand(char** parsedCommand, char backgroundProcessIndicator){
     else if (pid == 0) {
         if (execvp(parsedCommand[0], parsedCommand) == -1) {
             printf("%s: command not found\n", parsedCommand[0]);
+            exit(EXIT_SUCCESS);
         }
     }
     else {
-        wait(NULL);
-        return 0;
+        if(backgroundProcessFlag != 1) {
+            // Waiting for any child process to finish...
+            wait(NULL);
+            wait(NULL); 
+        }
     }
+
+    return 0;
 }
 
 int builtInHandler(char* command){
@@ -101,6 +107,7 @@ int main(int argc, char const *argv[])
 
     while (executionFlag == 1) { 
 
+        backgroundProcessFlag = 0; // Revert flag to '0'
         printf("%sShell> \x1B[37m",PROMPTCOLOR); // Print Shell PROMPT
         fflush(stdout); // Clear (or flush) the output buffer
         fgets(command,MAX_CHARACTERS,stdin); // Get user input
@@ -111,7 +118,7 @@ int main(int argc, char const *argv[])
 
             if (builtInHandler(command) == 0) {
                 parsedCommand = parseCommand(command); // Break command into single parts, Ex: ls -l -> [ls] [-l]
-                executeCommand(parsedCommand, backgroundProcessFlag); //Ex: cat ejemplo.c & or ls -l etc...
+                executeCommand(parsedCommand); //Ex: cat ejemplo.c & or ls -l etc...
             }
             
         }
