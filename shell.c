@@ -7,22 +7,20 @@
 
 #define PROMPTCOLOR  "\x1B[1;32m" 
 #define MAX_CHARACTERS 1024
-#define NUM_BUILT_IN_CMDS 2
+#define NUM_BUILTINCMDS 2
 
-static char* builtInCmds[NUM_BUILT_IN_CMDS]; //Array of Built-In Commands
-static int executionFlag = 1; //Flag for executing the main() process
+static char* builtInCmds[NUM_BUILTINCMDS]; //Array of Built-In Commands
 static int backgroundProcessFlag = 0; //Specifies if "&" is present
 
+
 #pragma region FUNCTIONS:
-void initShell(){
-    // Initiate Built-In commands:
+void initShell(){// Initiate Built-In commands:
     builtInCmds[0] = "exit"; 
     builtInCmds[1] = "history";
-
     printf("\033[H\033[J"); //Clear Screen
 }
 
-char** parseCommand(char* command){
+char** parseSingleCommand(char* command){
     char **parsedCommand = malloc (sizeof(char *) * 1024);
     char *token = malloc (sizeof(char) * MAX_CHARACTERS);
     int iterator = 0;
@@ -63,8 +61,7 @@ int executeCommand(char** parsedCommand){
         }
     }
     else {
-        if(backgroundProcessFlag != 1) {
-            // Waiting for any child process to finish...
+        if(backgroundProcessFlag != 1) { // Waiting for any child process to finish...
             wait(NULL);
             wait(NULL); 
         }
@@ -73,10 +70,25 @@ int executeCommand(char** parsedCommand){
     return 0;
 }
 
+int parseFullCommand(char* command, char** parsedFullCommand) //
+{ 
+    for (size_t i = 0; i < 2; i++) { 
+        parsedFullCommand[i] = strsep(&command, "|"); 
+        if (parsedFullCommand[i] == NULL) 
+            break; 
+    } 
+  
+    if (parsedFullCommand[1] == NULL) 
+        return 0; // returns 0 if no pipe is found. 
+    else { 
+        return 1; // returns 1 if a pipe is found. 
+    } 
+} 
+
 int builtInHandler(char* command){
     int builtInCommand;
 
-    for(size_t i = 0; i < NUM_BUILT_IN_CMDS; i++)
+    for(size_t i = 0; i < NUM_BUILTINCMDS; i++)
     {
         if (strcmp(command, builtInCmds[i]) == 0) { 
             builtInCommand = i + 1; 
@@ -97,15 +109,20 @@ int builtInHandler(char* command){
 }
 
 
+
 /* Main Function: */
 int main(int argc, char const *argv[])
 {
+    int isRunning = 1;
+
     char* command = malloc(sizeof(char) * MAX_CHARACTERS);
     char** parsedCommand = malloc (sizeof(char *) * MAX_CHARACTERS);
+    char** parsedPipeCommand = malloc (sizeof(char *) * MAX_CHARACTERS);
+    char** parsedFullCommand = malloc (sizeof(char *) * MAX_CHARACTERS);
 
     initShell(); // Executing init() function...
 
-    while (executionFlag == 1) { 
+    while (isRunning == 1) { 
 
         backgroundProcessFlag = 0; // Revert flag to '0'
         printf("%sShell> \x1B[37m",PROMPTCOLOR); // Print Shell PROMPT
@@ -117,8 +134,15 @@ int main(int argc, char const *argv[])
             command[strcspn(command, "\n")] = '\0'; // Remove 'ENTER'
 
             if (builtInHandler(command) == 0) {
-                parsedCommand = parseCommand(command); // Break command into single parts, Ex: ls -l -> [ls] [-l]
-                executeCommand(parsedCommand); //Ex: cat ejemplo.c & or ls -l etc...
+
+                if (parseFullCommand(command, parsedFullCommand) == 1) { //If a pipe is found:
+                    parsedPipeCommand = parseSingleCommand(parsedFullCommand[1]);
+                    executeCommand(parsedPipeCommand); //Ex: cat ejemplo.c & or ls -l etc...
+                }
+                else { // If no pipe is found:
+                    parsedCommand = parseSingleCommand(parsedFullCommand[0]); 
+                    executeCommand(parsedCommand); //Ex: cat ejemplo.c & or ls -l etc...
+                }
             }
             
         }
