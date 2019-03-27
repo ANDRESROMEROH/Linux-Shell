@@ -46,7 +46,7 @@ char** parseSingleCommand(char* command){
     return parsedCommand;
 }
 
-int executeCommand(char** parsedCommand){
+int executeSingleCommand(char** parsedCommand){
     pid_t pid;
     pid = fork();
 
@@ -70,7 +70,8 @@ int executeCommand(char** parsedCommand){
     return 0;
 }
 
-int parseFullCommand(char* command, char** parsedFullCommand) //
+// Divide command if it is compose by a pipe "|":
+int divideComposedCommand(char* command, char** parsedFullCommand) 
 { 
     for (size_t i = 0; i < 2; i++) { 
         parsedFullCommand[i] = strsep(&command, "|"); 
@@ -79,9 +80,9 @@ int parseFullCommand(char* command, char** parsedFullCommand) //
     } 
   
     if (parsedFullCommand[1] == NULL) 
-        return 0; // returns 0 if no pipe is found. 
+        return 0; // returns 0 if no pipe is found
     else { 
-        return 1; // returns 1 if a pipe is found. 
+        return 1; // returns 1 if a pipe is found
     } 
 } 
 
@@ -100,7 +101,7 @@ int builtInHandler(char* command){
     {
         case 1: //Exit
            exit(0); // Finish the main() process
-    
+
         default:
             break;
     }
@@ -115,19 +116,19 @@ int main(int argc, char const *argv[])
 {
     int isRunning = 1;
 
-    char* command = malloc(sizeof(char) * MAX_CHARACTERS);
-    char** parsedCommand = malloc (sizeof(char *) * MAX_CHARACTERS);
-    char** parsedPipeCommand = malloc (sizeof(char *) * MAX_CHARACTERS);
-    char** parsedFullCommand = malloc (sizeof(char *) * MAX_CHARACTERS);
+    char* command = malloc(sizeof(char) * MAX_CHARACTERS); // Stores the original user's input
+    char** parsedCommand = malloc (sizeof(char *) * MAX_CHARACTERS); // Stores a single command after being parsed
+    char** parsedPipeCommand = malloc (sizeof(char *) * MAX_CHARACTERS); // Stores a command next to a pipe
+    char** parsedFullCommand = malloc (sizeof(char *) * MAX_CHARACTERS); // Stores the full command divided by a pipe "|"
 
     initShell(); // Executing init() function...
 
     while (isRunning == 1) { 
 
-        backgroundProcessFlag = 0; // Revert flag to '0'
+        backgroundProcessFlag = 0;                // Revert flag to '0'
         printf("%sShell> \x1B[37m",PROMPTCOLOR); // Print Shell PROMPT
-        fflush(stdout); // Clear (or flush) the output buffer
-        fgets(command,MAX_CHARACTERS,stdin); // Get user input
+        fflush(stdout);                         // Clear (or flush) the output buffer
+        fgets(command,MAX_CHARACTERS,stdin);   // Get user input
 
         if (strlen(command) > 1) {
 
@@ -135,13 +136,17 @@ int main(int argc, char const *argv[])
 
             if (builtInHandler(command) == 0) {
 
-                if (parseFullCommand(command, parsedFullCommand) == 1) { //If a pipe is found:
+                if (divideComposedCommand(command, parsedFullCommand) == 1) { //If a pipe is found:
+
                     parsedPipeCommand = parseSingleCommand(parsedFullCommand[1]);
-                    executeCommand(parsedPipeCommand); //Ex: cat ejemplo.c & or ls -l etc...
+                    executeSingleCommand(parsedPipeCommand); //Ex: cat ejemplo.c & or ls -l etc...
+
                 }
                 else { // If no pipe is found:
+
                     parsedCommand = parseSingleCommand(parsedFullCommand[0]); 
-                    executeCommand(parsedCommand); //Ex: cat ejemplo.c & or ls -l etc...
+                    executeSingleCommand(parsedCommand); //Ex: cat ejemplo.c & or ls -l etc...
+
                 }
             }
             
