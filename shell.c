@@ -1,44 +1,22 @@
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <regex.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/wait.h>
+#include "shell.h"
 
-#define PROMPTCOLOR  "\x1B[1;32m" 
-#define MAX_CHARACTERS 1024
-#define NUM_BUILTINCMDS 2
-
-static char* builtInCmds[NUM_BUILTINCMDS]; //Array of Built-In Commands
-static int backgroundProcessFlag = 0; //Specifies if "&" is present
-
-//Functions:
-void initShell();
-char** parseSingleCommand(char* command);
-int divideComposedCommand(char* command, char** parsedFullCommand);
-int executeSingleCommand(char** parsedCommand);
-int executeCommandWithPipe(char** parsedCommand, char** parsedPipeCommand);
-int builtInHandler(char* command);
-
-
-int main(int argc, char const *argv[]) /* Main Function: */
+/* Main Function: */
+int main(int argc, char const *argv[]) 
 {
     int isRunning = 1;
+    int commandId = 1;
 
-    char* command = malloc(sizeof(char) * MAX_CHARACTERS); // Stores the original user's input
-    char** parsedCommand = malloc (sizeof(char *) * MAX_CHARACTERS); // Stores a single command after being parsed
-    char** parsedPipeCommand = malloc (sizeof(char *) * MAX_CHARACTERS); // Stores a command next to a pipe
-    char** parsedFullCommand = malloc (sizeof(char *) * MAX_CHARACTERS); // Stores the full command divided by a pipe "|"
+    char* command = malloc(sizeof(char) * MAX_CHARACTERS); 
+    char** parsedCommand = malloc (sizeof(char *) * MAX_CHARACTERS); 
+    char** parsedPipeCommand = malloc (sizeof(char *) * MAX_CHARACTERS); 
+    char** parsedFullCommand = malloc (sizeof(char *) * MAX_CHARACTERS); 
 
-    initShell(); // Executing init() function...
+    initShell();
 
     while (isRunning == 1) { 
 
-        backgroundProcessFlag = 0;                // Revert flag to '0'
         printf("%sShell> \x1B[37m",PROMPTCOLOR); // Print Shell PROMPT
-        fflush(stdout);                         // Clear (or flush) the output buffer
-        fgets(command,MAX_CHARACTERS,stdin);   // Get user input
+        fgets(command,MAX_CHARACTERS,stdin);    // Get user input
 
         if (strlen(command) > 1) {
 
@@ -46,11 +24,13 @@ int main(int argc, char const *argv[]) /* Main Function: */
 
             if (builtInHandler(command) == 0) {
 
+                addCommandToHistory(commandId++, command); //Store command in history
+
                 if (divideComposedCommand(command, parsedFullCommand) == 1) { //If a pipe is found:
 
                     parsedCommand = parseSingleCommand(parsedFullCommand[0]);
                     parsedPipeCommand = parseSingleCommand(parsedFullCommand[1]);
-                    executeCommandWithPipe(parsedCommand, parsedPipeCommand); //Ex: cat LICENSE | grep copyright
+                    executeCommandWithPipe(parsedCommand, parsedPipeCommand); //Ex: cat shell.c | less
 
                 }
                 else { // If NO pipe is found:
@@ -60,7 +40,9 @@ int main(int argc, char const *argv[]) /* Main Function: */
 
                 }
             }
-            
+
+            backgroundProcessFlag = 0; // Revert flag to '0'
+
         }
     } 
 
@@ -69,13 +51,11 @@ int main(int argc, char const *argv[]) /* Main Function: */
 
 
 /* Funtions Implementation: */
-
-void initShell() {// Initiate Built-In commands:
+void initShell() {
     builtInCmds[0] = "exit"; 
     builtInCmds[1] = "history";
     printf("\033[H\033[J"); //Clear Screen
 }
-
 
 char** parseSingleCommand(char* command) {
     char **parsedCommand = malloc (sizeof(char *) * 1024);
@@ -146,7 +126,6 @@ int executeSingleCommand(char** parsedCommand){
 }
 
 
-// Execute piped system commands
 int executeCommandWithPipe(char** parsedCommand, char** parsedPipeCommand) 
 { 
    pid_t pid1, pid2;
@@ -183,6 +162,48 @@ int executeCommandWithPipe(char** parsedCommand, char** parsedPipeCommand)
 }
 
 
+void addCommandToHistory(int id, char *name)
+{
+    struct command *cmd;
+
+    HASH_FIND_INT(history, &id, cmd);  // id already in the hash?
+    if (cmd==NULL) {
+        cmd = (struct command*)malloc(sizeof(struct command));
+        cmd->id = id;
+        HASH_ADD_INT(history, id, cmd);
+    }
+    strcpy(cmd->name, name);
+}
+
+
+struct command *findCommandInHistory(int id)
+{
+    struct command *cmd;
+    HASH_FIND_INT(history, &id, cmd);
+
+    return cmd;
+}
+
+
+void printHistory()
+{
+    struct command *cmd;
+    int key = HASH_COUNT(history);
+
+    for(size_t i = 0; i < HASH_COUNT(history); i++)
+    {
+        if (key > 0 ) {
+            cmd = findCommandInHistory(key);
+            printf("%d: %s\n", cmd->id, cmd->name);
+            key--;
+        }
+        else {
+            return;
+        }
+    }
+}
+
+
 int builtInHandler(char* command){
     int builtInCommand;
 
@@ -198,6 +219,10 @@ int builtInHandler(char* command){
     {
         case 1: //Exit
            exit(0); // Finish the main() process
+
+        case 2: //History
+           printHistory(); // Shows the history of commands
+           return 1;
 
         default:
             break;
