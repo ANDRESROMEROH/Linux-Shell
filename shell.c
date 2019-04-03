@@ -206,6 +206,9 @@ void printHistory()
 
 int builtInHandler(char* command){
     int builtInCommand;
+    int key;
+
+    struct command *cmd;
 
     for(size_t i = 0; i < NUM_BUILTINCMDS; i++)
     {
@@ -213,6 +216,15 @@ int builtInHandler(char* command){
             builtInCommand = i + 1; 
             break; 
         } 
+
+        if (strpbrk(command,"!")) {
+            if(isdigit(command[1]) != 0){
+                command[0] = '0';
+                key = atoi(command);
+                builtInCommand = 3;
+            }
+        }
+        
     }
     
     switch (builtInCommand)
@@ -222,6 +234,11 @@ int builtInHandler(char* command){
 
         case 2: //History
            printHistory(); // Shows the history of commands
+           return 1;
+
+        case 3: //Get command in History
+           cmd = findCommandInHistory(key);
+           printf("%d: %s\n", cmd->id, cmd->name);
            return 1;
 
         default:
