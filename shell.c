@@ -1,6 +1,6 @@
 #include "shell.h"
 
-/* Main Function: */
+/* Main Function */
 int main(int argc, char const *argv[]) 
 {
     int isRunning = 1;
@@ -25,7 +25,7 @@ int main(int argc, char const *argv[])
             if (builtInHandler(command) == 0) {
 
                 addCommandToHistory(commandId++, command); //Store command in history
-
+                
                 if (divideComposedCommand(command, parsedFullCommand) == 1) { //If a pipe is found:
 
                     parsedCommand = parseSingleCommand(parsedFullCommand[0]);
@@ -50,12 +50,24 @@ int main(int argc, char const *argv[])
 }
 
 
-/* Funtions Implementation: */
 void initShell() {
     builtInCmds[0] = "exit"; 
     builtInCmds[1] = "history";
-    printf("\033[H\033[J"); //Clear Screen
+    builtInCmds[2] = "!";
+    printf("\033[H\033[J"); // cls
 }
+
+// Divide command if it is compose by a pipe "|":
+int divideComposedCommand(char* command, char** parsedFullCommand) 
+{ 
+    for (size_t i = 0; i < 2; i++) { 
+        parsedFullCommand[i] = strsep(&command, "|"); 
+        if (parsedFullCommand[i] == NULL) { break; }
+    } 
+
+    return (parsedFullCommand[1] == NULL) ? 0 : 1;
+} 
+
 
 char** parseSingleCommand(char* command) {
     char **parsedCommand = malloc (sizeof(char *) * 1024);
@@ -69,36 +81,18 @@ char** parseSingleCommand(char* command) {
         // If & is included process running in background:
         if(strcmp(token, "&") == 0){
             backgroundProcessFlag = 1;
-            iterator ++;                          
-            token = strtok(NULL, " \t\r\n\a");  
+            iterator ++;
         } else {
-            parsedCommand[iterator] = token;             
-            iterator ++;                          
-            token = strtok(NULL, " \t\r\n\a");  
+            parsedCommand[iterator++] = token;
         }
+
+        token = strtok(NULL, " \t\r\n\a");  
     }
 
     parsedCommand[iterator] = NULL;
 
     return parsedCommand;
 }
-
-
-int divideComposedCommand(char* command, char** parsedFullCommand) 
-{ 
-    // Divide command if it is compose by a pipe "|":
-    for (size_t i = 0; i < 2; i++) { 
-        parsedFullCommand[i] = strsep(&command, "|"); 
-        if (parsedFullCommand[i] == NULL) 
-            break; 
-    } 
-  
-    if (parsedFullCommand[1] == NULL) 
-        return 0; // returns 0 if no pipe is found
-    else { 
-        return 1; // returns 1 if a pipe is found
-    } 
-} 
 
 
 int executeSingleCommand(char** parsedCommand){
@@ -165,13 +159,14 @@ int executeCommandWithPipe(char** parsedCommand, char** parsedPipeCommand)
 void addCommandToHistory(int id, char *name)
 {
     struct command *cmd;
-
     HASH_FIND_INT(history, &id, cmd);  // id already in the hash?
-    if (cmd==NULL) {
+
+    if (cmd == NULL) {
         cmd = (struct command*)malloc(sizeof(struct command));
         cmd->id = id;
         HASH_ADD_INT(history, id, cmd);
     }
+
     strcpy(cmd->name, name);
 }
 
@@ -187,14 +182,12 @@ struct command *findCommandInHistory(int id)
 
 void printHistory()
 {
-    struct command *cmd;
     int key = HASH_COUNT(history);
 
     for(size_t i = 0; i < HASH_COUNT(history); i++)
     {
         if (key > 0 ) {
-            cmd = findCommandInHistory(key);
-            printf("%d: %s\n", cmd->id, cmd->name);
+            printCommandByID(key);
             key--;
         }
         else {
@@ -204,46 +197,56 @@ void printHistory()
 }
 
 
-int builtInHandler(char* command){
-    int builtInCommand;
-    int key;
-
+void printCommandByID(int key)
+{
     struct command *cmd;
 
-    for(size_t i = 0; i < NUM_BUILTINCMDS; i++)
-    {
+    if (key <= HASH_COUNT(history)) {
+
+        cmd = findCommandInHistory(key);
+        printf("#%d: %s\n", cmd->id, cmd->name);
+
+    } else {
+        printf("command #%d not registered\n", key);
+    }
+
+}
+
+
+int builtInHandler(char* command){
+    int builtInCommand = -1;
+
+    for(size_t i = 0; i < NUM_BUILTINCMDS; i++){
         if (strcmp(command, builtInCmds[i]) == 0) { 
-            builtInCommand = i + 1; 
+            builtInCommand = i; 
             break; 
         } 
 
-        if (strpbrk(command,"!")) {
-            if(isdigit(command[1]) != 0){
-                command[0] = '0';
-                key = atoi(command);
-                builtInCommand = 3;
-            }
+        if (strpbrk(command,"!") && isdigit(command[1]) != 0) {
+            command[0] = '0'; // Converting "!" will allow to parse the key using atoi()
+            builtInCommand = 2; // Setup the handler to 3 which is  "!"
         }
-        
     }
-    
+
+    return executeBuiltInCmd(command, builtInCommand);
+}
+
+
+int executeBuiltInCmd(char* command, int builtInCommand) {
     switch (builtInCommand)
     {
-        case 1: //Exit
-           exit(0); // Finish the main() process
+        case 0: // Exit
+           exit(0); 
 
-        case 2: //History
-           printHistory(); // Shows the history of commands
+        case 1: // History
+           printHistory(); 
            return 1;
 
-        case 3: //Get command in History
-           cmd = findCommandInHistory(key);
-           printf("%d: %s\n", cmd->id, cmd->name);
+        case 2: // !#
+           printCommandByID(atoi(command));
            return 1;
 
         default:
-            break;
+            return 0;
     }
-
-    return 0;
 }
