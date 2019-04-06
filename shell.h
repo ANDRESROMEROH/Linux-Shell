@@ -9,7 +9,7 @@
 // Non-Built-In Libraries:
 #include "hashtable/uthash.h"
 
-#define PROMPTCOLOR "\x1B[1;32m" 
+#define PROMPTCOLOR "\x1B[1;36m" 
 #define MAX_CHARACTERS 1024
 #define NUM_BUILTINCMDS 3
 

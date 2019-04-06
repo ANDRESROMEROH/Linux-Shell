@@ -15,7 +15,7 @@ int main(int argc, char const *argv[])
 
     while (isRunning == 1) { 
 
-        printf("%sShell> \x1B[37m",PROMPTCOLOR); // Print Shell PROMPT
+        printf("%sshell> \x1B[1;37m",PROMPTCOLOR); // Print Shell PROMPT
         fgets(command,MAX_CHARACTERS,stdin);    // Get user input
 
         if (strlen(command) > 1) {
@@ -54,7 +54,11 @@ void initShell() {
     builtInCmds[0] = "exit"; 
     builtInCmds[1] = "history";
     builtInCmds[2] = "!";
+    
     printf("\033[H\033[J"); // cls
+    printf("\x1B[1;32mLinux Shell [Version 1.0]\n");
+    printf("(c) 2019 Andres Romero. For property rights see LICENSE.\n");
+    printf("GitHub Inc: https://github.com/ANDRESROMEROH\n\n");
 }
 
 // Divide command if it is compose by a pipe "|":
@@ -100,12 +104,12 @@ int executeSingleCommand(char** parsedCommand){
     pid = fork();
 
     if (pid < 0) {
-        printf("There was an error calling fork()\n");
+        printf("\x1B[1;31mThere was an error calling fork()\n");
         return -1;
     }
     else if (pid == 0) {
         if (execvp(parsedCommand[0], parsedCommand) == -1) {
-            printf("%s: command not found\n", parsedCommand[0]);
+            printf("\x1B[1;31m%s: command not found\n", parsedCommand[0]);
             exit(EXIT_SUCCESS);
         }
     }
@@ -207,7 +211,7 @@ void printCommandByID(int key)
         printf("#%d: %s\n", cmd->id, cmd->name);
 
     } else {
-        printf("command #%d not registered\n", key);
+        printf("\x1B[1;31mcommand #%d not registered\n", key);
     }
 
 }
