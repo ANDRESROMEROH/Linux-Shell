@@ -205,13 +205,13 @@ void printCommandByID(int key)
 {
     struct command *cmd;
 
-    if (key <= HASH_COUNT(history)) {
+    if (key <= HASH_COUNT(history) && key > 0) {
 
         cmd = findCommandInHistory(key);
         printf("#%d: %s\n", cmd->id, cmd->name);
 
     } else {
-        printf("\x1B[1;31mcommand #%d not registered\n", key);
+        printf("\x1B[1;31mcommand #%d hasn't been registered\n", key);
     }
 
 }
